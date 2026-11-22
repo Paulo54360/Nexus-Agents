@@ -1,0 +1,52 @@
+# ==============================================================================
+# Declarative MCP (Model Context Protocol) Server Registry
+# Active when MOCK_TOOLS=false in .env
+#
+# Each entry maps to an agent domain ("gmail", "productivity", "asso", "dev")
+# and is loaded dynamically via langchain-mcp-adapters (MultiServerMCPClient).
+# ==============================================================================
+
+servers:
+  gmail:
+    enabled: true
+    agent: gmail
+    transport: stdio
+    command: npx
+    args: ["-y", "@gongrzhe/server-gmail-autoauth-mcp"]
+    env:
+      GMAIL_OAUTH_PATH: "/app/secrets/google_credentials.json"
+      GMAIL_CREDENTIALS_PATH: "/app/secrets/gmail_token.json"
+
+  google_calendar:
+    enabled: true
+    agent: productivity
+    transport: stdio
+    command: npx
+    args: ["-y", "@cocal/google-calendar-mcp"]
+    env:
+      GOOGLE_OAUTH_CREDENTIALS: "/app/secrets/google_credentials.json"
+      GOOGLE_CALENDAR_MCP_TOKEN_PATH: "/app/secrets/calendar_token.json"
+      GOOGLE_ACCOUNT_MODE: "normal"
+
+  notion:
+    enabled: true
+    agent: productivity
+    transport: stdio
+    command: npx
+    args: ["-y", "@notionhq/notion-mcp-server"]
+    env:
+      NOTION_TOKEN: "${NOTION_API_KEY}"
+
+  # --- V2 Placeholders (ready to plug in without changing core orchestration) ---
+  # discord_asso:
+  #   enabled: false
+  #   agent: asso
+  #   transport: streamable_http
+  #   url: "http://mcp-discord:8080/mcp"
+  #
+  # github_dev:
+  #   enabled: false
+  #   agent: dev
+  #   transport: stdio
+  #   command: npx
+  #   args: ["-y", "@modelcontextprotocol/server-github"]

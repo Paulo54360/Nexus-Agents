@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Terraform / OpenTofu
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+!**/*.tfvars.example
+**/.terraform.lock.hcl
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

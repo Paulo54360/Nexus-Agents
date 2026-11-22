@@ -1,0 +1,55 @@
+#cloud-config
+# ==============================================================================
+# Nexus Agents — Zero-Trust VPS Bootstrap (Ubuntu 24.04 LTS — ARM64 / AMD64)
+# Installs Docker Engine, Tailscale, and configures UFW with 0 public open ports.
+# ==============================================================================
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - ufw
+  - fail2ban
+
+users:
+  - default
+  - name: deploy
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+
+runcmd:
+  # 1. Install Docker Engine + Compose plugin
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker deploy
+  - systemctl enable --now docker
+
+  # 2. Install Tailscale (private WireGuard mesh VPN)
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - systemctl enable --now tailscaled
+  # Join your Tailnet automatically if TAILSCALE_AUTHKEY was injected by Terraform
+  - |
+    if [ -n "${tailscale_authkey}" ]; then
+      tailscale up --authkey="${tailscale_authkey}" --hostname="nexus-vps" --ssh
+    fi
+
+  # 3. Zero-Trust Firewall: allow outbound only + inbound strictly over Tailscale
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow in on tailscale0
+  # Keep port 22 temporarily if no Tailscale key was provided at boot
+  - |
+    if [ -z "${tailscale_authkey}" ]; then
+      ufw allow 22/tcp
+    fi
+  - ufw --force enable
+
+  # 4. Prepare Nexus project directory
+  - mkdir -p /opt/nexus-agents/secrets
+  - chown -R deploy:deploy /opt/nexus-agents
+
+final_message: "Nexus Zero-Trust VPS bootstrap completed in $UPTIME seconds."

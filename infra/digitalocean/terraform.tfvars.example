@@ -1,0 +1,6 @@
+# Copie ce fichier en terraform.tfvars (ne jamais commiter terraform.tfvars !)
+do_token            = "dop_v1_REMPLACE_PAR_TON_TOKEN"
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+region              = "fra1"
+droplet_size        = "s-2vcpu-4gb"
+tailscale_authkey   = "tskey-auth-OPTIONNEL"

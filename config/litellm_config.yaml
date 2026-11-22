@@ -1,0 +1,64 @@
+# ==============================================================================
+# LiteLLM Hybrid Multi-Provider Free Open-Source Cascade (0 EUR / mois)
+# Priority:
+#   1. Mistral AI Free Experiment Tier (ministral-14b / mistral-medium-3.5)
+#   2. Groq Free Tier Open-Source (qwen3.8-27b / gpt-oss-120b)
+#   3. Google Gemini Free Tier (gemini-3.5-flash-lite / gemini-3.1-flash-lite)
+# ==============================================================================
+
+model_list:
+  # --- Primary Fast (Supervisor routing & quick summaries): Mistral 14B open-weight ---
+  - model_name: nexus-fast
+    litellm_params:
+      model: mistral/ministral-14b-latest
+      api_key: os.environ/MISTRAL_API_KEY
+
+  # --- Primary Smart (56 MCP tools, Gmail/Notion/Calendar/Discord): Mistral Medium 3.5 ---
+  - model_name: nexus-smart
+    litellm_params:
+      model: mistral/mistral-medium-latest
+      api_key: os.environ/MISTRAL_API_KEY
+
+  # --- Fallback 1: Groq Free Tier Open-Source (Qwen 3.8 27B & GPT-OSS 120B) ---
+  - model_name: fallback-groq
+    litellm_params:
+      model: groq/qwen/qwen3.8-27b
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: fallback-groq
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+
+  # --- Fallback 2: Google Gemini Free Tier ---
+  - model_name: fallback-gemini
+    litellm_params:
+      model: gemini/gemini-3.5-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: fallback-gemini
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+
+  # --- Optional: Local Ollama on your Mac/PC over Tailscale ---
+  # - model_name: nexus-local
+  #   litellm_params:
+  #     model: ollama_chat/qwen2.5:14b
+  #     api_base: os.environ/OLLAMA_API_BASE
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  allowed_fails: 1
+  cooldown_time: 120
+  timeout: 45
+  fallbacks:
+    - nexus-fast: ["fallback-groq", "fallback-gemini"]
+    - nexus-smart: ["fallback-groq", "fallback-gemini"]
+
+litellm_settings:
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-prod}
+      POSTGRES_DB: ${POSTGRES_DB:-nexus}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus} -d ${POSTGRES_DB:-nexus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexus-net
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: nexus-litellm
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    volumes:
+      - ./config/litellm_config.yaml:/app/config.yaml:ro
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-nexus-local-dev-key}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-}
+    ports:
+      # Bound to localhost only — access remotely via Tailscale
+      - "127.0.0.1:4000:4000"
+    networks:
+      - nexus-net
+
+  nexus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-change-me-in-prod}@postgres:5432/${POSTGRES_DB:-nexus}
+      LITELLM_BASE_URL: http://litellm:4000/v1
+    volumes:
+      - ./config:/app/config:ro
+      - ./secrets:/app/secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+      litellm:
+        condition: service_started
+    ports:
+      # Bound to localhost only — expose via Tailscale or reverse proxy
+      - "127.0.0.1:8000:8000"
+    networks:
+      - nexus-net
+
+  # Optional LLMOps observability stack:
+  # Run with: docker compose --profile observability up -d
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: nexus-langfuse
+    profiles: ["observability"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-change-me-in-prod}@postgres:5432/langfuse
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-change-me-langfuse-nextauth-secret}
+      SALT: ${LANGFUSE_SALT:-change-me-langfuse-salt}
+      NEXTAUTH_URL: http://localhost:3000
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - nexus-net
+
+volumes:
+  postgres_data:
+
+networks:
+  nexus-net:
+    driver: bridge

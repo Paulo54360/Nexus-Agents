@@ -1,0 +1,62 @@
+# ==============================================================================
+# Nexus Agents — Declarative Automation Engine
+# Ajoute tes automatisations ici en quelques lignes YAML (event-driven ou CRON).
+#
+# Types de déclencheurs supportés :
+#   - discord_forum_post_created : dès qu'un nouveau post est créé dans un Forum Discord
+#   - discord_message_keyword    : dès qu'un mot-clé précis apparaît sur le serveur staff
+#   - cron                       : tâche planifiée personnalisée
+# ==============================================================================
+
+automations:
+  - id: sync-new-moderation-dossier
+    name: "Nouveau suivi de modération → Fiche Notion LPA"
+    enabled: true
+    trigger:
+      type: discord_forum_post_created
+      guild_id: "${DISCORD_ASSO_GUILD_ID}"
+      # Filtre par nom du forum (insensible à la casse) — ou utilise forum_id: "..."
+      forum_name_contains: "mod"
+    # Salon privé où Nexus confirme l'action (laisse #asso-digest ou #command-center)
+    notify_channel_id: "${DISCORD_ASSO_DIGEST_CHANNEL_ID}"
+    fallback_notify_channel_id: "${DISCORD_COMMAND_CENTER_CHANNEL_ID}"
+    prompt: |
+      ⚡ AUTOMATISATION DÉCLENCHÉE : un nouveau post vient d'être créé dans le forum Discord `{forum_name}`.
+      - Titre du post (sujet probable) : {thread_name}
+      - Ouvert par (modérateur, NE PAS créer de fiche pour lui) : {author}
+      - Premier message : {starter_message}
+      - Lien Discord : {thread_url}
+
+      Instructions :
+      1. Vérifie si ce post concerne bien une personne suivie (ignore les posts généraux de règlement).
+      2. Si oui, crée ou mets à jour la fiche de `{thread_name}` dans ma base Notion `LPA`
+         avec un résumé factuel du dossier et le lien Discord.
+      3. Rédige une courte notification de confirmation en français (avec lien vers la fiche Notion).
+
+  # --- Exemple 2 : Alerte mot-clé sur le serveur staff (décommente pour activer) ---
+  # - id: urgent-mention-alert
+  #   name: "Alerte mot-clé urgent sur le serveur staff"
+  #   enabled: false
+  #   trigger:
+  #     type: discord_message_keyword
+  #     guild_id: "${DISCORD_ASSO_GUILD_ID}"
+  #     keywords: ["urgent", "incident", "paulo"]
+  #   notify_channel_id: "${DISCORD_REMINDERS_CHANNEL_ID}"
+  #   prompt: |
+  #     Un message important vient d'être posté dans `#{channel_name}` par `{author}` :
+  #     "{content}" ({message_url})
+  #     Résume l'urgence et propose une tâche Notion si une action est attendue de moi.
+
+  # --- Exemple 3 : Bilan hebdomadaire automatique (décommente pour activer) ---
+  # - id: weekly-friday-recap
+  #   name: "Bilan hebdomadaire (Vendredi 18h)"
+  #   enabled: false
+  #   trigger:
+  #     type: cron
+  #     day_of_week: fri
+  #     hour: 18
+  #     minute: 0
+  #   notify_channel_id: "${DISCORD_BRIEFING_CHANNEL_ID}"
+  #   prompt: |
+  #     Prépare mon bilan hebdomadaire : tâches Notion restantes dans ToDo,
+  #     résumé des dossiers récents du forum suivi de modération, et événements de la semaine prochaine.
