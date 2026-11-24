@@ -73,8 +73,8 @@ services:
       nexus:
         condition: service_started
     ports:
-      # Bound to localhost only — expose privately via Tailscale Serve HTTPS
-      - "127.0.0.1:8080:80"
+      # Bound to localhost (or Tailscale IP via WEB_BIND_IP) — never exposed publicly
+      - "${WEB_BIND_IP:-127.0.0.1}:8080:80"
     networks:
       - nexus-net
 

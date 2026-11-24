@@ -9,32 +9,34 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS nexus_threads (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT 'general',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS nexus_usage_events (
-    id BIGSERIAL PRIMARY KEY,
-    thread_id TEXT,
-    agent TEXT NOT NULL DEFAULT 'supervisor',
-    model TEXT NOT NULL,
-    provider TEXT NOT NULL DEFAULT 'litellm',
-    prompt_tokens INTEGER NOT NULL DEFAULT 0,
-    completion_tokens INTEGER NOT NULL DEFAULT 0,
-    total_tokens INTEGER NOT NULL DEFAULT 0,
-    latency_ms INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'ok',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_nexus_usage_created_at ON nexus_usage_events (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_nexus_threads_updated_at ON nexus_threads (updated_at DESC);
-"""
+_SCHEMA_STATEMENTS: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS nexus_threads (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'general',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS nexus_usage_events (
+        id BIGSERIAL PRIMARY KEY,
+        thread_id TEXT,
+        agent TEXT NOT NULL DEFAULT 'supervisor',
+        model TEXT NOT NULL,
+        provider TEXT NOT NULL DEFAULT 'litellm',
+        prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        latency_ms INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'ok',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_nexus_usage_created_at ON nexus_usage_events (created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_nexus_threads_updated_at ON nexus_threads (updated_at DESC)",
+)
 
 
 def infer_provider(model_name: str) -> str:
@@ -69,7 +71,8 @@ class MissionControlStore:
         if not self.pool:
             return
         async with self.pool.connection() as conn, conn.cursor() as cur:
-            await cur.execute(_SCHEMA_SQL)
+            for stmt in _SCHEMA_STATEMENTS:
+                await cur.execute(stmt)
         logger.info("Mission Control PostgreSQL tables ready.")
 
     # ------------------------------------------------------------------
