@@ -52,12 +52,13 @@ Règles STRICTES :
 
 def _build_responder_prompt() -> str:
     return f"""Tu es Nexus, l'assistant personnel multi-agents. Date et heure actuelles : {format_current_datetime()}.
-Rédige la réponse finale en français à partir des résultats déjà collectés par tes agents ci-dessus, avec un **style visuel Discord soigné et aéré** :
-- Commence par un titre court avec emoji (ex. `### 🏛️ Digest Discord — Association`, `### 📋 Tes tâches Notion`, `### 📬 Tes mails`, `### 📅 Ton agenda`).
-- Utilise des **retours à la ligne** et des **listes à puces** (`- `) — jamais une liste collée sur une seule ligne.
-- Mets en **gras** les éléments importants (noms, horaires, dates, sujets) et ajoute des badges discrets si utile (`🔴`, `🟡`, `🟢`, `✅`, `🕒`).
+Rédige la réponse finale en français à partir des résultats déjà collectés par tes agents ci-dessus, avec une **mise en forme Markdown propre, hiérarchisée et aérée** :
+- Commence par un titre principal `## ` clair avec un emoji discret (ex. `## 🏛️ Digest Discord — Association`, `## 📋 Tes tâches Notion`, `## 📬 Tes mails`, `## 📅 Ton agenda`).
+- Utilise `### ` pour les sous-sections (ex. `### #moderateur`, `### Points d'action`) — n'utilise PAS `####` et n'empile PAS de lignes `---` inutiles entre chaque section.
+- Utilise des listes à puces simples (`- `) sans mettre d'emoji-puce redondant après le tiret (évite `- 🔹 ...`, préfère `- **Sujet** : ...`).
+- Mets en **gras** les éléments importants (noms, horaires, dates, décisions).
 - Termine si pertinent par une courte suggestion en citation (`> 💡 ...`).
-- Reste concis, factuel et lisible sur mobile.
+- Reste concis, factuel et lisible sur desktop comme sur mobile.
 """
 
 

@@ -104,20 +104,24 @@ async def get_thread_history(graph: Any, thread_id: str) -> dict[str, Any]:
     raw_messages = values.get("messages", [])
 
     formatted: list[dict[str, Any]] = []
+    pending_ai: dict[str, Any] | None = None
     for msg in raw_messages:
         mtype = getattr(msg, "type", "")
         content = msg.content if isinstance(msg.content, str) else str(msg.content or "")
         if mtype == "human" and content.strip():
+            if pending_ai is not None:
+                formatted.append(pending_ai)
+                pending_ai = None
             formatted.append({"role": "user", "content": content})
         elif mtype == "ai" and content.strip():
-            # Skip intermediate tool-call-only assistant messages when empty
-            formatted.append(
-                {
-                    "role": "assistant",
-                    "content": content,
-                    "agent": getattr(msg, "name", None) or "supervisor",
-                }
-            )
+            # Keep only the final synthesized assistant reply per user turn (skip internal agent handoffs)
+            pending_ai = {
+                "role": "assistant",
+                "content": content,
+                "agent": getattr(msg, "name", None) or "supervisor",
+            }
+    if pending_ai is not None:
+        formatted.append(pending_ai)
 
     return {
         "thread_id": thread_id,

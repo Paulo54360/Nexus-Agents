@@ -107,12 +107,12 @@ body,
 /* Editorial Markdown typography inside Chat */
 .nexus-prose {
   font-size: 0.925rem;
-  line-height: 1.65;
+  line-height: 1.68;
   color: var(--fg-primary);
 }
 
 .nexus-prose p {
-  margin: 0.5rem 0;
+  margin: 0.55rem 0;
 }
 
 .nexus-prose p:first-child {
@@ -125,26 +125,70 @@ body,
 
 .nexus-prose h1,
 .nexus-prose h2,
-.nexus-prose h3 {
+.nexus-prose h3,
+.nexus-prose h4 {
   font-weight: 600;
   letter-spacing: -0.02em;
-  margin-top: 1rem;
-  margin-bottom: 0.45rem;
+  color: var(--fg-primary);
+  line-height: 1.35;
 }
 
-.nexus-prose h1 { font-size: 1.15rem; }
-.nexus-prose h2 { font-size: 1.05rem; }
-.nexus-prose h3 { font-size: 0.96rem; }
+.nexus-prose h1 {
+  font-size: 1.35rem;
+  margin: 1.35rem 0 0.65rem;
+}
+
+.nexus-prose h2 {
+  font-size: 1.15rem;
+  margin: 1.25rem 0 0.55rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nexus-prose h3 {
+  font-size: 1.03rem;
+  margin: 1.1rem 0 0.45rem;
+}
+
+.nexus-prose h4 {
+  font-size: 0.94rem;
+  margin: 0.95rem 0 0.35rem;
+  color: var(--fg-primary);
+}
+
+.nexus-prose h1:first-child,
+.nexus-prose h2:first-child,
+.nexus-prose h3:first-child,
+.nexus-prose h4:first-child {
+  margin-top: 0;
+}
+
+.nexus-prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.15rem 0;
+}
+
+.nexus-prose strong {
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.nexus-prose em {
+  color: var(--fg-secondary);
+}
 
 .nexus-prose ul,
 .nexus-prose ol {
-  padding-left: 1.25rem;
+  padding-left: 1.3rem;
   margin: 0.5rem 0;
 }
 
 .nexus-prose ul { list-style-type: disc; }
+.nexus-prose ul ul { list-style-type: circle; margin: 0.25rem 0 0.4rem; }
 .nexus-prose ol { list-style-type: decimal; }
-.nexus-prose li { margin: 0.2rem 0; }
+.nexus-prose li { margin: 0.25rem 0; }
+.nexus-prose li::marker { color: var(--fg-muted); }
 
 .nexus-prose code {
   font-family: "JetBrains Mono", monospace;
