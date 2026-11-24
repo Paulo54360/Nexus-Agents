@@ -17,9 +17,9 @@ variable "region" {
 }
 
 variable "droplet_size" {
-  description = "Taille du Droplet (s-2vcpu-4gb recommandé si tu actives Langfuse)"
+  description = "Taille du Droplet (s-2vcpu-2gb ~12$/mois = ~16 mois gratuits avec 200$ GitHub Student)"
   type        = string
-  default     = "s-2vcpu-4gb"
+  default     = "s-2vcpu-2gb"
 }
 
 variable "tailscale_authkey" {

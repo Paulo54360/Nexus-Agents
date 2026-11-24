@@ -23,6 +23,10 @@ users:
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
 
 runcmd:
+  # 0. Add 2 GB swapfile so Docker builds never OOM on 2 GB RAM VMs
+  - fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
   # 1. Install Docker Engine + Compose plugin
   - curl -fsSL https://get.docker.com | sh
   - usermod -aG docker deploy
@@ -48,8 +52,10 @@ runcmd:
     fi
   - ufw --force enable
 
-  # 4. Prepare Nexus project directory
-  - mkdir -p /opt/nexus-agents/secrets
-  - chown -R deploy:deploy /opt/nexus-agents
+  # 4. Prepare Nexus project directory & copy SSH key to deploy user
+  - mkdir -p /home/deploy/.ssh /opt/nexus-agents/secrets
+  - cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys || true
+  - chmod 700 /home/deploy/.ssh && chmod 600 /home/deploy/.ssh/authorized_keys || true
+  - chown -R deploy:deploy /home/deploy/.ssh /opt/nexus-agents
 
 final_message: "Nexus Zero-Trust VPS bootstrap completed in $UPTIME seconds."

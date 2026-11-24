@@ -2,5 +2,5 @@
 do_token            = "dop_v1_REMPLACE_PAR_TON_TOKEN"
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 region              = "fra1"
-droplet_size        = "s-2vcpu-4gb"
+droplet_size        = "s-2vcpu-2gb"
 tailscale_authkey   = "tskey-auth-OPTIONNEL"
