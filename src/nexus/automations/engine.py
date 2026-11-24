@@ -108,6 +108,35 @@ class AutomationEngine:
         lines.append("\n> 💡 Tape `!run <id>` pour lancer une automatisation manuellement.")
         return "\n".join(lines)
 
+    def list_rules_data(self) -> list[dict[str, Any]]:
+        """Return JSON-serializable rule definitions for the Mission Control UI."""
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "enabled": r.enabled,
+                "trigger": r.trigger,
+                "prompt": r.prompt.strip(),
+                "notify_channel_id": r.target_channel_id,
+            }
+            for r in self.rules
+        ]
+
+    def toggle_rule(self, rule_id: str) -> dict[str, Any] | None:
+        """Toggle an automation rule's enabled flag in memory."""
+        rule = next((r for r in self.rules if r.id == rule_id), None)
+        if rule is None:
+            return None
+        rule.enabled = not rule.enabled
+        logger.info("Automation '%s' toggled -> enabled=%s", rule.id, rule.enabled)
+        return {
+            "id": rule.id,
+            "name": rule.name,
+            "enabled": rule.enabled,
+            "trigger": rule.trigger,
+            "prompt": rule.prompt.strip(),
+        }
+
     def register_cron_jobs(self, scheduler: AsyncIOScheduler) -> None:
         """Register all enabled `cron` rules from automations.yaml into APScheduler."""
         for rule in self.rules:

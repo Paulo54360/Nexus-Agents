@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -28,7 +28,7 @@ def format_current_datetime() -> str:
     try:
         now = datetime.now(ZoneInfo(tz_name))
     except ZoneInfoNotFoundError:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         tz_name = "UTC"
     weekday = _WEEKDAYS_FR[now.weekday()]
     return f"{weekday} {now.strftime('%Y-%m-%d %H:%M')} ({tz_name})"
@@ -80,7 +80,9 @@ async def _decide_route(messages: list) -> RouteDecision:
         except Exception as exc:
             logger.warning("Router structured output failed on tier '%s': %s", tier, exc)
     # Last-resort safe fallback
-    return RouteDecision(next_agent="FINISH", reasoning="Fallback après erreur de routage structuré.")
+    return RouteDecision(
+        next_agent="FINISH", reasoning="Fallback après erreur de routage structuré."
+    )
 
 
 async def supervisor_node(state: NexusState) -> dict:
@@ -115,6 +117,8 @@ async def supervisor_node(state: NexusState) -> dict:
         final_msg = await responder.ainvoke(
             [SystemMessage(content=_build_responder_prompt()), *trimmed]
         )
-        content = final_msg.content if isinstance(final_msg.content, str) else str(final_msg.content)
+        content = (
+            final_msg.content if isinstance(final_msg.content, str) else str(final_msg.content)
+        )
         update["messages"] = [AIMessage(content=content)]
     return update

@@ -63,6 +63,21 @@ services:
     networks:
       - nexus-net
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexus-web
+    restart: unless-stopped
+    depends_on:
+      nexus:
+        condition: service_started
+    ports:
+      # Bound to localhost only — expose privately via Tailscale Serve HTTPS
+      - "127.0.0.1:8080:80"
+    networks:
+      - nexus-net
+
   # Optional LLMOps observability stack:
   # Run with: docker compose --profile observability up -d
   langfuse:
