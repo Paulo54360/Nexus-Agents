@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -28,52 +28,63 @@ def format_current_datetime() -> str:
     try:
         now = datetime.now(ZoneInfo(tz_name))
     except ZoneInfoNotFoundError:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         tz_name = "UTC"
     weekday = _WEEKDAYS_FR[now.weekday()]
     return f"{weekday} {now.strftime('%Y-%m-%d %H:%M')} ({tz_name})"
 
 
-def _build_supervisor_prompt() -> str:
-    return f"""Tu es le Superviseur de Nexus, un orchestrateur multi-agents personnel.
-Date et heure actuelles : {format_current_datetime()}.
+def _build_router_prompt() -> str:
+    return f"""Tu es le routeur du Superviseur Nexus. Date et heure actuelles : {format_current_datetime()}.
 
-Tu supervises trois agents spécialisés :
-- `gmail_agent` : tout ce qui concerne Gmail (lecture, résumé, tri, labels, brouillons, envoi).
-- `productivity_agent` : Google Calendar (agenda, disponibilités, événements) et Notion (tâches, to-do, rappels).
-- `asso_agent` : lecture seule et résumés du serveur Discord de l'association (salons, décisions, événements, actions à suivre).
+Agents spécialisés disponibles :
+- `gmail_agent` : Gmail (lecture, résumé, tri, labels, brouillons, envoi).
+- `productivity_agent` : Google Calendar (agenda, événements) et Notion (tâches, bases, fiches LPA).
+- `asso_agent` : serveur Discord du staff / association (salons texte, forums, suivi de modération).
 
-Règles de routage STRICTES :
-1. Décompose mentalement la demande de l'utilisateur en sous-tâches (Gmail vs Calendar/Notion vs Discord Association).
-2. Ne choisis JAMAIS `FINISH` tant que TOUTES les parties de la demande n'ont pas été traitées.
-3. Pour une demande mixte (ex. « résume ce qui s'est passé sur le Discord de l'asso ET ajoute les actions dans Notion » ou « lis mes mails ET ajoute l'événement au calendrier ») :
-   - Délègue d'abord à l'agent qui lit la source (`asso_agent` ou `gmail_agent`),
-   - Puis délègue à `productivity_agent` pour créer les tâches Notion ou événements Calendar,
-   - Et seulement ensuite choisis `FINISH` avec une synthèse globale.
-4. Si un agent indique ne pas posséder un outil d'un autre domaine, délègue immédiatement à l'agent compétent au lieu de conclure.
-5. **ANTI-BOUCLE** : Si le MÊME agent vient déjà d'être appelé et indique qu'une ressource est introuvable, qu'il manque une permission (ex. base Notion non partagée) ou qu'une information manque, NE le rappelle PAS une deuxième fois : choisis immédiatement `FINISH` et explique clairement ce qui a été trouvé et ce qui bloque.
-6. Quand tu choisis `FINISH`, rédige une réponse finale en français dans `final_response` avec un **style visuel Discord soigné et aéré** :
-   - Commence par un titre clair avec un emoji (ex. `### 📋 Tes tâches Notion — ToDo`, `### 📬 Tes mails`, `### 📅 Ton agenda`, `### 🏛️ Digest Discord — Association`).
-   - Utilise des **retours à la ligne** et des **listes à puces** (`- `) — JAMAIS une liste collée sur une seule ligne.
-   - Mets en **gras** les titres, expéditeurs, dates ou horaires importants ; ajoute des badges discrets si pertinent (`🔴`, `🟡`, `🟢`, `✅`, `🕒`).
-   - Termine si pertinent par une courte suggestion en citation (`> 💡 ...`).
-   - Reste concis et lisible sur mobile.
+Règles STRICTES :
+1. Délègue au bon agent dès qu'une information externe ou action est nécessaire.
+2. Pour une demande mixte (ex. lire le Discord asso PUIS écrire dans Notion), appelle d'abord `asso_agent`, puis `productivity_agent`, puis `FINISH`.
+3. ANTI-BOUCLE : si un agent vient déjà de répondre avec le résultat ou signale un blocage/permission manquante, choisis `FINISH` (ne le rappelle pas en boucle).
+4. Choisis `FINISH` dès que toutes les infos nécessaires sont dans la conversation.
+"""
+
+
+def _build_responder_prompt() -> str:
+    return f"""Tu es Nexus, l'assistant personnel multi-agents. Date et heure actuelles : {format_current_datetime()}.
+Rédige la réponse finale en français à partir des résultats déjà collectés par tes agents ci-dessus, avec un **style visuel Discord soigné et aéré** :
+- Commence par un titre court avec emoji (ex. `### 🏛️ Digest Discord — Association`, `### 📋 Tes tâches Notion`, `### 📬 Tes mails`, `### 📅 Ton agenda`).
+- Utilise des **retours à la ligne** et des **listes à puces** (`- `) — jamais une liste collée sur une seule ligne.
+- Mets en **gras** les éléments importants (noms, horaires, dates, sujets) et ajoute des badges discrets si utile (`🔴`, `🟡`, `🟢`, `✅`, `🕒`).
+- Termine si pertinent par une courte suggestion en citation (`> 💡 ...`).
+- Reste concis, factuel et lisible sur mobile.
 """
 
 
 class RouteDecision(BaseModel):
     next_agent: Literal["gmail_agent", "productivity_agent", "asso_agent", "FINISH"] = Field(
-        description="Prochain agent à invoquer, ou FINISH uniquement quand TOUTE la demande est traitée."
+        description="Prochain agent à invoquer, ou FINISH si toutes les infos sont prêtes."
     )
-    reasoning: str = Field(description="Brève justification du routage.")
-    final_response: str | None = Field(
-        default=None,
-        description="Réponse finale en français adressée à l'utilisateur (obligatoire si FINISH).",
+    reasoning: str = Field(
+        description="Justification très courte (1 phrase max) du choix de routage."
     )
+
+
+async def _decide_route(messages: list) -> RouteDecision:
+    """Ask the fast router (with smart fallback) for a compact routing decision."""
+    prompt_msgs = [SystemMessage(content=_build_router_prompt()), *messages]
+    for tier in ("fast", "smart"):
+        try:
+            llm = get_llm(tier=tier, temperature=0.0).with_structured_output(RouteDecision)
+            return await llm.ainvoke(prompt_msgs)
+        except Exception as exc:
+            logger.warning("Router structured output failed on tier '%s': %s", tier, exc)
+    # Last-resort safe fallback
+    return RouteDecision(next_agent="FINISH", reasoning="Fallback après erreur de routage structuré.")
 
 
 async def supervisor_node(state: NexusState) -> dict:
-    """Decide whether to delegate to a specialist agent or conclude with a final answer."""
+    """Decide whether to delegate to a specialist agent or synthesize the final Discord response."""
     step_count = state.get("step_count", 0)
     if step_count >= MAX_SUPERVISOR_STEPS:
         logger.warning("Supervisor reached MAX_SUPERVISOR_STEPS (%d), forcing FINISH.", step_count)
@@ -90,17 +101,20 @@ async def supervisor_node(state: NexusState) -> dict:
             ],
         }
 
-    llm = get_llm(tier="fast", temperature=0.0).with_structured_output(RouteDecision)
-    decision: RouteDecision = await llm.ainvoke(
-        [SystemMessage(content=_build_supervisor_prompt()), *trim_conversation(state["messages"])]
-    )
-
+    trimmed = trim_conversation(state["messages"])
+    decision = await _decide_route(trimmed)
     logger.info("Supervisor routed to %s (%s)", decision.next_agent, decision.reasoning)
 
     update: dict = {
         "next_agent": decision.next_agent,
         "step_count": step_count + 1,
     }
-    if decision.next_agent == "FINISH" and decision.final_response:
-        update["messages"] = [AIMessage(content=decision.final_response)]
+    if decision.next_agent == "FINISH":
+        # Generate rich Markdown freely outside JSON so open-source models never truncate JSON
+        responder = get_llm(tier="smart", temperature=0.2)
+        final_msg = await responder.ainvoke(
+            [SystemMessage(content=_build_responder_prompt()), *trimmed]
+        )
+        content = final_msg.content if isinstance(final_msg.content, str) else str(final_msg.content)
+        update["messages"] = [AIMessage(content=content)]
     return update
