@@ -48,19 +48,44 @@ def test_apply_hitl_policy_marks_critical_tools() -> None:
 def test_trim_conversation_starts_on_human_and_compacts_old_tools() -> None:
     msgs = [
         HumanMessage(content="turn 1"),
-        AIMessage(content="calling tool"),
+        AIMessage(content="", tool_calls=[{"id": "call_1", "name": "search", "args": {}}]),
         ToolMessage(content="x" * 5000, tool_call_id="call_1"),
         AIMessage(content="answer 1"),
         HumanMessage(content="turn 2"),
         AIMessage(content="answer 2"),
         HumanMessage(content="turn 3"),
+        AIMessage(content="", tool_calls=[{"id": "call_2", "name": "search", "args": {}}]),
         ToolMessage(content="y" * 5000, tool_call_id="call_2"),
         AIMessage(content="answer 3"),
     ]
     trimmed = trim_conversation(msgs, max_messages=8)
 
     assert isinstance(trimmed[0], HumanMessage)
-    # Earlier tool output is compacted while latest messages stay intact
     tool_msgs = [m for m in trimmed if isinstance(m, ToolMessage)]
     assert len(tool_msgs) == 1
     assert len(tool_msgs[0].content) == 5000
+
+
+def test_trim_conversation_long_single_turn_never_orphans_tool_messages() -> None:
+    """Regression test: a single turn with 12+ tool calls must never produce orphaned ToolMessages."""
+    msgs: list = [HumanMessage(content="Analyse tous mes emails et propose des labels")]
+    for i in range(12):
+        call_id = f"call_{i}"
+        msgs.append(
+            AIMessage(content="", tool_calls=[{"id": call_id, "name": "search_emails", "args": {}}])
+        )
+        msgs.append(ToolMessage(content=f"email batch {i}", tool_call_id=call_id))
+
+    trimmed = trim_conversation(msgs, max_messages=10)
+
+    # First message must stay the user's HumanMessage
+    assert isinstance(trimmed[0], HumanMessage)
+    # Never starts with ToolMessage, and every ToolMessage follows its declaring AIMessage
+    seen_ids: set[str] = set()
+    for msg in trimmed:
+        if isinstance(msg, AIMessage):
+            seen_ids = {tc["id"] for tc in (msg.tool_calls or [])}
+        elif isinstance(msg, ToolMessage):
+            assert msg.tool_call_id in seen_ids
+        else:
+            seen_ids = set()

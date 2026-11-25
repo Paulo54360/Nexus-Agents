@@ -51,11 +51,11 @@ router_settings:
   routing_strategy: simple-shuffle
   num_retries: 3
   allowed_fails: 2
-  cooldown_time: 10
+  cooldown_time: 5
   timeout: 45
   fallbacks:
-    - nexus-fast: ["fallback-mistral", "fallback-gemini"]
-    - nexus-smart: ["fallback-mistral", "fallback-gemini", "fallback-groq"]
+    - nexus-fast: ["fallback-gemini", "fallback-mistral"]
+    - nexus-smart: ["fallback-gemini", "fallback-groq", "fallback-mistral"]
 
 litellm_settings:
   drop_params: true
